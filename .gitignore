@@ -52,3 +52,14 @@ lerna-debug.log*
 # Temporary files
 *.tmp
 *.temp
+.DS_Store
+Thumbs.db
+
+# Deployment
+.vercel
+.render
+.railway
+
+# Environment
+.env
+.env.local

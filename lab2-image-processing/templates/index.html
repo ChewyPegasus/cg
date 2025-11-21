@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI Computer Vision</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .params-group { 
+            display: none; 
+            margin-top: 20px; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px; 
+            border: 1px solid #dee2e6;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .result-img { 
+            max-height: 400px; 
+            width: auto; 
+            display: block; 
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        
+        .param-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .param-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .param-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .param-value {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .form-range {
+            height: 8px;
+            background: linear-gradient(to right, #e9ecef, #667eea);
+            border-radius: 10px;
+        }
+        
+        .form-range::-webkit-slider-thumb {
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        }
+        
+        .form-range::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            padding: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .method-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            color: white;
+            font-weight: 700;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .histogram-container {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Лабораторная работа: Обработка изображений</h1>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Настройки</h5>
+                    <form action="/process" method="post" enctype="multipart/form-data">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Изображение</label>
+                            <input type="file" name="file" id="fileInput" class="form-control" {% if not original %}required{% endif %} accept="image/*">
+                            {% if original %}
+                            <input type="hidden" name="original_data" value="{{ original }}">
+                            <small class="text-muted">Используется текущее изображение. Загрузите новое для замены.</small>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Метод</label>
+                            <select name="method" id="methodSelect" class="form-select" onchange="toggleParams()">
+                                <option value="canny" {% if selected_method == "canny" %}selected{% endif %}>Сегментация: Границы (Canny)</option>
+                                <option value="hough" {% if selected_method == "hough" %}selected{% endif %}>Сегментация: Линии (Hough)</option>
+                                <option value="contrast" {% if selected_method == "contrast" %}selected{% endif %}>Линейное контрастирование</option>
+                                <option value="eq_rgb" {% if selected_method == "eq_rgb" %}selected{% endif %}>Эквализация (RGB)</option>
+                                <option value="eq_hsv" {% if selected_method == "eq_hsv" %}selected{% endif %}>Эквализация (HSV)</option>
+                            </select>
+                        </div>
+
+                        <div id="cannyParams" class="params-group">
+                            <div class="method-badge">⚙️ Параметры Canny</div>
+                            
+                            <div class="param-item">
+                                <div class="param-label">
+                                    <span>Нижний порог</span>
+                                    <span class="param-value" id="canny_t1_val">{{ params.canny_t1 if params else 50 }}</span>
+                                </div>
+                                <input type="range" name="canny_t1" class="form-range" min="0" max="255" value="{{ params.canny_t1 if params else 50 }}" 
+                                       oninput="document.getElementById('canny_t1_val').textContent = this.value">
+                            </div>
+                            
+                            <div class="param-item">
+                                <div class="param-label">
+                                    <span>Верхний порог</span>
+                                    <span class="param-value" id="canny_t2_val">{{ params.canny_t2 if params else 150 }}</span>
+                                </div>
+                                <input type="range" name="canny_t2" class="form-range" min="0" max="255" value="{{ params.canny_t2 if params else 150 }}" 
+                                       oninput="document.getElementById('canny_t2_val').textContent = this.value">
+                            </div>
+                        </div>
+
+                        <div id="houghParams" class="params-group">
+                            <div class="method-badge">⚙️ Параметры Hough</div>
+                            
+                            <div class="param-item">
+                                <div class="param-label">
+                                    <span>Порог (Threshold)</span>
+                                </div>
+                                <input type="number" name="hough_thresh" class="form-control" value="{{ params.hough_thresh if params else 50 }}" min="1" max="200">
+                            </div>
+                            
+                            <div class="param-item">
+                                <div class="param-label">
+                                    <span>Мин. длина линии</span>
+                                </div>
+                                <input type="number" name="hough_min_len" class="form-control" value="{{ params.hough_min_len if params else 50 }}" min="1" max="500">
+                            </div>
+
+                            <div class="param-item">
+                                <div class="param-label">
+                                    <span>Макс. разрыв</span>
+                                </div>
+                                <input type="number" name="hough_max_gap" class="form-control" value="{{ params.hough_max_gap if params else 10 }}" min="1" max="100">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Обработать</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if error %}
+                        <div class="alert alert-danger">{{ error }}</div>
+                    {% endif %}
+                    
+                    {% if result and original %}
+                        <div class="row">
+                            <div class="col-md-6 text-center">
+                                <h5 class="card-title mb-3">Оригинал</h5>
+                                <img src="{{ original }}" class="img-fluid result-img border mb-3" alt="Original Image">
+                                {% if original_hist %}
+                                <div class="histogram-container">
+                                    <img src="{{ original_hist }}" class="img-fluid" alt="Original Histogram" style="max-width: 100%; height: auto;">
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 text-center">
+                                <h5 class="card-title mb-3">Результат</h5>
+                                <img src="{{ result }}" class="img-fluid result-img border mb-3" alt="Processed Image">
+                                {% if result_hist %}
+                                <div class="histogram-container">
+                                    <img src="{{ result_hist }}" class="img-fluid" alt="Result Histogram" style="max-width: 100%; height: auto;">
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{{ result }}" download="result.png" class="btn btn-success">Скачать результат</a>
+                            <a href="{{ original }}" download="original.png" class="btn btn-secondary">Скачать оригинал</a>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            Загрузите изображение и выберите метод для просмотра результата.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleParams() {
+        const method = document.getElementById('methodSelect').value;
+        // Скрываем все
+        document.querySelectorAll('.params-group').forEach(el => el.style.display = 'none');
+        
+        // Показываем нужное
+        if (method === 'canny') {
+            document.getElementById('cannyParams').style.display = 'block';
+        } else if (method === 'hough') {
+            document.getElementById('houghParams').style.display = 'block';
+        }
+        // Остальные методы параметров не требуют
+    }
+    
+    // Запуск при загрузке
+    window.onload = toggleParams;
+</script>
+
+</body>
+</html>

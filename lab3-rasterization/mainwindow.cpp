@@ -17,9 +17,6 @@ void MainWindow::setupUi() {
     QHBoxLayout *mainLayout = new QHBoxLayout(centralWidget);
     QVBoxLayout *controlsLayout = new QVBoxLayout();
 
-    // === Панель управления ===
-    
-    // Выбор метода
     comboMethod = new QComboBox();
     comboMethod->addItem("Пошаговый алгоритм");
     comboMethod->addItem("Алгоритм ЦДА (DDA)");
@@ -29,7 +26,6 @@ void MainWindow::setupUi() {
     controlsLayout->addWidget(new QLabel("Метод:"));
     controlsLayout->addWidget(comboMethod);
 
-    // Параметры линии
     groupLineParams = new QGroupBox("Координаты отрезка");
     QGridLayout *lineLayout = new QGridLayout();
     editX1 = new QLineEdit("0"); editY1 = new QLineEdit("0");
@@ -41,16 +37,14 @@ void MainWindow::setupUi() {
     groupLineParams->setLayout(lineLayout);
     controlsLayout->addWidget(groupLineParams);
 
-    // Параметры окружности (скрыты по умолчанию)
     groupCircleParams = new QGroupBox("Параметры окружности");
     QGridLayout *circleLayout = new QGridLayout();
     editRadius = new QLineEdit("10");
     circleLayout->addWidget(new QLabel("Радиус R:"), 0, 0); circleLayout->addWidget(editRadius, 0, 1);
     groupCircleParams->setLayout(circleLayout);
-    groupCircleParams->hide(); // Скрываем
+    groupCircleParams->hide();
     controlsLayout->addWidget(groupCircleParams);
 
-    // Масштаб
     controlsLayout->addWidget(new QLabel("Масштаб сетки:"));
     sliderScale = new QSlider(Qt::Horizontal);
     sliderScale->setRange(5, 50);
@@ -60,26 +54,22 @@ void MainWindow::setupUi() {
     labelScale = new QLabel("20 px");
     controlsLayout->addWidget(labelScale);
 
-    // Кнопка отрисовки
     QPushButton *btnDraw = new QPushButton("Построить");
     connect(btnDraw, &QPushButton::clicked, this, &MainWindow::onDrawClicked);
     controlsLayout->addWidget(btnDraw);
 
-    // Вывод времени
     labelTime = new QLabel("Время: 0 нс");
     labelTime->setStyleSheet("font-weight: bold; color: green;");
     controlsLayout->addWidget(labelTime);
 
-    controlsLayout->addStretch(); // Пружина вниз
+    controlsLayout->addStretch();
 
-    // === Холст ===
     canvas = new Canvas();
     canvas->setMinimumSize(600, 600);
 
     mainLayout->addLayout(controlsLayout, 1);
     mainLayout->addWidget(canvas, 4);
     
-    // Валидаторы (только целые числа)
     QIntValidator *val = new QIntValidator(-1000, 1000, this);
     editX1->setValidator(val); editY1->setValidator(val);
     editX2->setValidator(val); editY2->setValidator(val);
@@ -87,7 +77,6 @@ void MainWindow::setupUi() {
 }
 
 void MainWindow::onMethodChanged(int index) {
-    // 3 - это индекс окружности
     bool isCircle = (index == 3);
     groupLineParams->setVisible(!isCircle);
     groupCircleParams->setVisible(isCircle);
@@ -102,11 +91,10 @@ void MainWindow::onDrawClicked() {
     std::vector<QPoint> result;
     int method = comboMethod->currentIndex();
 
-    // Замер времени - start
     auto start = std::chrono::high_resolution_clock::now();
 
-    if (method == 3) { // Окружность
-        int x1 = editX1->text().toInt(); // Используем X1/Y1 как центр
+    if (method == 3) {
+        int x1 = editX1->text().toInt();
         int y1 = editY1->text().toInt();
         int r = editRadius->text().toInt();
         result = Rasterizer::bresenhamCircle(x1, y1, r);
@@ -121,7 +109,6 @@ void MainWindow::onDrawClicked() {
         else if (method == 2) result = Rasterizer::bresenhamLine(x1, y1, x2, y2);
     }
 
-    // Замер времени - end
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 

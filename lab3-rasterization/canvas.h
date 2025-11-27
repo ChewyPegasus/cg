@@ -12,20 +12,19 @@ class Canvas : public QWidget {
 public:
     explicit Canvas(QWidget *parent = nullptr);
     void setPixels(const std::vector<QPoint>& pixels);
-    void setGridSize(int size); // Масштаб
+    void setGridSize(int size);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
 
 private:
     std::vector<QPoint> m_pixels;
-    int m_gridSize = 20; // Размер клетки в пикселях экрана
+    int m_gridSize = 20;
 
     void drawGrid(QPainter &painter);
     void drawAxes(QPainter &painter);
     void drawPixels(QPainter &painter);
-    
-    // Преобразование логических координат в экранные
+
     QPoint toScreen(QPoint logicalPos);
 };
 

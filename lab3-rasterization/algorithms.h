@@ -8,10 +8,9 @@
 
 class Rasterizer {
 public:
-    // 1. Пошаговый алгоритм (Step-by-Step)
     static std::vector<QPoint> stepByStep(int x1, int y1, int x2, int y2) {
         std::vector<QPoint> points;
-        if (x1 == x2) { // Вертикальная линия
+        if (x1 == x2) {
             int start = std::min(y1, y2);
             int end = std::max(y1, y2);
             for (int y = start; y <= end; ++y) points.emplace_back(x1, y);
@@ -31,7 +30,6 @@ public:
         return points;
     }
 
-    // 2. Алгоритм ЦДА (DDA)
     static std::vector<QPoint> dda(int x1, int y1, int x2, int y2) {
         std::vector<QPoint> points;
         int dx = x2 - x1;
@@ -52,7 +50,6 @@ public:
         return points;
     }
 
-    // 3. Алгоритм Брезенхема (Отрезок)
     static std::vector<QPoint> bresenhamLine(int x1, int y1, int x2, int y2) {
         std::vector<QPoint> points;
         int dx = std::abs(x2 - x1);
@@ -77,7 +74,6 @@ public:
         return points;
     }
 
-    // 4. Алгоритм Брезенхема (Окружность)
     static std::vector<QPoint> bresenhamCircle(int xc, int yc, int r) {
         std::vector<QPoint> points;
         int x = 0;

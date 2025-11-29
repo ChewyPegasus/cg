@@ -10,60 +10,43 @@ import {
 } from './colorUtils';
 
 function ColorPicker() {
-  // RGB is the Source of Truth (0-255)
-  const [colorRGB, setColorRGB] = useState({ r: 51, g: 102, b: 204 }); // Примерный синий как в Python
+  const [colorRGB, setColorRGB] = useState({ r: 51, g: 102, b: 204 });
   const [colorCMYK, setColorCMYK] = useState({ c: 0, m: 0, y: 0, k: 0 });
   const [colorHLS, setColorHLS] = useState({ h: 0, l: 0, s: 0 });
   const [colorHSV, setColorHSV] = useState({ h: 0, s: 0, v: 0 });
 
-  // Универсальная функция обновления всех моделей на основе новых RGB
   const updateAllFromRgb = (r, g, b) => {
-    // Clamp values just in case
     r = Math.max(0, Math.min(255, r));
     g = Math.max(0, Math.min(255, g));
     b = Math.max(0, Math.min(255, b));
 
-    // 1. Update RGB State
     setColorRGB({ r, g, b });
-
-    // 2. Recalculate everything else directly from RGB
     setColorCMYK(rgbToCmyk(r, g, b));
     setColorHLS(rgbToHls(r, g, b));
     setColorHSV(rgbToHsv(r, g, b));
   };
 
-  // Init on mount
   useEffect(() => {
     updateAllFromRgb(colorRGB.r, colorRGB.g, colorRGB.b);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Handlers ---
-
   const handleRGBChange = (e) => {
     const { name, value } = e.target;
     const val = Number(value);
-    
-    // Создаем временный объект RGB
     const newRgb = { ...colorRGB, [name]: val };
-    
-    // Обновляем всё
     updateAllFromRgb(newRgb.r, newRgb.g, newRgb.b);
   };
 
   const handleCMYKChange = (e) => {
     const { name, value } = e.target;
     const val = Number(value);
-    
-    // 1. Update local CMYK state immediately (for smooth slider UI)
+
     const newCmyk = { ...colorCMYK, [name]: val };
     setColorCMYK(newCmyk);
 
-    // 2. Convert new CMYK -> RGB
     const newRgb = cmykToRgb(newCmyk.c, newCmyk.m, newCmyk.y, newCmyk.k);
 
-    // 3. Update all OTHERS based on that RGB
-    // Note: We don't overwrite colorCMYK here to prevent slider jumping due to rounding
     setColorRGB(newRgb);
     setColorHLS(rgbToHls(newRgb.r, newRgb.g, newRgb.b));
     setColorHSV(rgbToHsv(newRgb.r, newRgb.g, newRgb.b));
@@ -73,14 +56,11 @@ function ColorPicker() {
     const { name, value } = e.target;
     const val = Number(value);
 
-    // 1. Update local HLS state
     const newHls = { ...colorHLS, [name]: val };
     setColorHLS(newHls);
 
-    // 2. Convert HLS -> RGB
     const newRgb = hlsToRgb(newHls.h, newHls.l, newHls.s);
 
-    // 3. Update others
     setColorRGB(newRgb);
     setColorCMYK(rgbToCmyk(newRgb.r, newRgb.g, newRgb.b));
     setColorHSV(rgbToHsv(newRgb.r, newRgb.g, newRgb.b));
@@ -101,19 +81,18 @@ function ColorPicker() {
   };
 
   const handleHexChange = (e) => {
-      const hex = e.target.value;
-      const bigint = parseInt(hex.slice(1), 16);
-      const r = (bigint >> 16) & 255;
-      const g = (bigint >> 8) & 255;
-      const b = bigint & 255;
-      updateAllFromRgb(r, g, b);
+    const hex = e.target.value;
+    const bigint = parseInt(hex.slice(1), 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    updateAllFromRgb(r, g, b);
   };
 
   const hexColor = rgbToHex(colorRGB.r, colorRGB.g, colorRGB.b);
 
   return (
     <div className="color-picker-container">
-      {/* Color Preview Section */}
       <div className="color-display">
         <div className="color-preview" style={{ backgroundColor: hexColor }}>
           <div className="color-overlay">
@@ -162,9 +141,7 @@ function ColorPicker() {
         />
       </div>
 
-      {/* Controls Section */}
       <div className="controls-section">
-        {/* RGB Model */}
         <div className="color-model-card rgb-card">
           <div className="card-header">
             <span className="card-icon">🔴</span>
@@ -186,7 +163,6 @@ function ColorPicker() {
           </div>
         </div>
 
-        {/* CMYK Model */}
         <div className="color-model-card cmyk-card">
           <div className="card-header">
             <span className="card-icon">🖨️</span>
@@ -208,7 +184,6 @@ function ColorPicker() {
           </div>
         </div>
 
-        {/* HLS Model */}
         <div className="color-model-card hls-card">
           <div className="card-header">
             <span className="card-icon">💡</span>
@@ -230,7 +205,6 @@ function ColorPicker() {
           </div>
         </div>
 
-        {/* HSV Model (Bonus) */}
         <div className="color-model-card hsv-card">
           <div className="card-header">
             <span className="card-icon">🌈</span>

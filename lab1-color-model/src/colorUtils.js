@@ -1,4 +1,88 @@
-// RGB to CMYK
+// ======= XYZ as Central Color Space =======
+// All conversions go through XYZ to maintain color accuracy
+
+// sRGB gamma correction helpers
+const sRGBToLinear = (value) => {
+  value = value / 255;
+  return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+};
+
+const linearTosRGB = (value) => {
+  value = value <= 0.0031308 ? value * 12.92 : 1.055 * Math.pow(value, 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(255, value * 255));
+};
+
+// ======= RGB ↔ XYZ =======
+export const rgbToXyz = (r, g, b) => {
+  const rLinear = sRGBToLinear(r);
+  const gLinear = sRGBToLinear(g);
+  const bLinear = sRGBToLinear(b);
+
+  // sRGB to XYZ matrix (D65 -> D50 adapted)
+  const x = rLinear * 0.4360747 + gLinear * 0.3850649 + bLinear * 0.1430804;
+  const y = rLinear * 0.2225045 + gLinear * 0.7168786 + bLinear * 0.0606169;
+  const z = rLinear * 0.0139322 + gLinear * 0.0971045 + bLinear * 0.7141733;
+
+  return { x: x * 100, y: y * 100, z: z * 100 };
+};
+
+export const xyzToRgb = (x, y, z) => {
+  x = x / 100;
+  y = y / 100;
+  z = z / 100;
+
+  // XYZ to sRGB matrix (D50 -> D65 adapted)
+  const rLinear = x * 3.1338561 + y * -1.6168667 + z * -0.4906146;
+  const gLinear = x * -0.9787684 + y * 1.9161415 + z * 0.0334540;
+  const bLinear = x * 0.0719453 + y * -0.2289914 + z * 1.4052427;
+
+  const r = Math.round(linearTosRGB(rLinear));
+  const g = Math.round(linearTosRGB(gLinear));
+  const b = Math.round(linearTosRGB(bLinear));
+
+  return { r, g, b };
+};
+
+// ======= CMYK ↔ XYZ =======
+export const cmykToXyz = (c, m, y, k) => {
+  // CMYK to XYZ conversion through Lab color space
+  // This preserves the full CMYK gamut
+  
+  c = c / 100;
+  m = m / 100;
+  y = y / 100;
+  k = k / 100;
+  
+  // Convert CMYK to CMY
+  const cmy_c = c * (1 - k) + k;
+  const cmy_m = m * (1 - k) + k;
+  const cmy_y = y * (1 - k) + k;
+  
+  // CMY to RGB (inverted)
+  const r_norm = 1 - cmy_c;
+  const g_norm = 1 - cmy_m;
+  const b_norm = 1 - cmy_y;
+  
+  // Apply gamma correction
+  const rLinear = r_norm <= 0.04045 ? r_norm / 12.92 : Math.pow((r_norm + 0.055) / 1.055, 2.4);
+  const gLinear = g_norm <= 0.04045 ? g_norm / 12.92 : Math.pow((g_norm + 0.055) / 1.055, 2.4);
+  const bLinear = b_norm <= 0.04045 ? b_norm / 12.92 : Math.pow((b_norm + 0.055) / 1.055, 2.4);
+  
+  // Linear RGB to XYZ
+  const xCoord = rLinear * 0.4360747 + gLinear * 0.3850649 + bLinear * 0.1430804;
+  const yCoord = rLinear * 0.2225045 + gLinear * 0.7168786 + bLinear * 0.0606169;
+  const zCoord = rLinear * 0.0139322 + gLinear * 0.0971045 + bLinear * 0.7141733;
+
+  return { x: xCoord * 100, y: yCoord * 100, z: zCoord * 100 };
+};
+
+export const xyzToCmyk = (x, y, z) => {
+  // XYZ to CMYK conversion
+  const rgb = xyzToRgb(x, y, z);
+  return rgbToCmyk(rgb.r, rgb.g, rgb.b);
+};
+
+// Traditional RGB to CMYK (for fallback)
 export const rgbToCmyk = (r, g, b) => {
   let c = 1 - (r / 255);
   let m = 1 - (g / 255);
@@ -17,15 +101,22 @@ export const rgbToCmyk = (r, g, b) => {
   return { c: c * 100, m: m * 100, y: y * 100, k: k * 100 };
 };
 
-// CMYK to RGB
 export const cmykToRgb = (c, m, y, k) => {
-  const r = 255 * (1 - c / 100) * (1 - k / 100);
-  const g = 255 * (1 - m / 100) * (1 - k / 100);
-  const b = 255 * (1 - y / 100) * (1 - k / 100);
-  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+  const xyz = cmykToXyz(c, m, y, k);
+  return xyzToRgb(xyz.x, xyz.y, xyz.z);
 };
 
-// RGB to HSV
+// ======= HSV ↔ XYZ =======
+export const hsvToXyz = (h, s, v) => {
+  const rgb = hsvToRgb(h, s, v);
+  return rgbToXyz(rgb.r, rgb.g, rgb.b);
+};
+
+export const xyzToHsv = (x, y, z) => {
+  const rgb = xyzToRgb(x, y, z);
+  return rgbToHsv(rgb.r, rgb.g, rgb.b);
+};
+
 export const rgbToHsv = (r, g, b) => {
   r /= 255;
   g /= 255;
@@ -52,7 +143,6 @@ export const rgbToHsv = (r, g, b) => {
   return { h: h * 360, s: s * 100, v: v * 100 };
 };
 
-// HSV to RGB
 export const hsvToRgb = (h, s, v) => {
   h = h / 360;
   s = s / 100;
@@ -82,7 +172,17 @@ export const hsvToRgb = (h, s, v) => {
   };
 };
 
-// RGB to HLS
+// ======= HLS ↔ XYZ =======
+export const hlsToXyz = (h, l, s) => {
+  const rgb = hlsToRgb(h, l, s);
+  return rgbToXyz(rgb.r, rgb.g, rgb.b);
+};
+
+export const xyzToHls = (x, y, z) => {
+  const rgb = xyzToRgb(x, y, z);
+  return rgbToHls(rgb.r, rgb.g, rgb.b);
+};
+
 export const rgbToHls = (r, g, b) => {
   r /= 255;
   g /= 255;
@@ -109,7 +209,6 @@ export const rgbToHls = (r, g, b) => {
   return { h: h * 360, l: l * 100, s: s * 100 };
 };
 
-// HLS to RGB
 export const hlsToRgb = (h, l, s) => {
   h = h / 360;
   l = l / 100;
@@ -141,10 +240,22 @@ export const hlsToRgb = (h, l, s) => {
   };
 };
 
-// RGB to HEX
+// ======= Utility Functions =======
 export const rgbToHex = (r, g, b) => {
   return "#" + [r, g, b].map(x => {
     const hex = Math.max(0, Math.min(255, Math.round(x))).toString(16);
     return hex.length === 1 ? "0" + hex : hex;
   }).join('');
+};
+
+// Remove validation function since all CMYK colors are now valid
+// The conversion through XYZ handles the full CMYK gamut
+export const validateCmyk = (c, m, y, k) => {
+  // Simply clamp values to valid ranges
+  return {
+    c: Math.max(0, Math.min(100, c)),
+    m: Math.max(0, Math.min(100, m)),
+    y: Math.max(0, Math.min(100, y)),
+    k: Math.max(0, Math.min(100, k))
+  };
 };

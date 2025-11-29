@@ -17,9 +17,9 @@ VENV_DIR = .venv
 REQS = requirements.txt
 
 ifeq ($(OS),Windows_NT)
-    PYTHON_BIN = $(VENV_DIR)/Scripts/python.exe
-    PIP_BIN = $(VENV_DIR)/Scripts/pip.exe
-    UVICORN_BIN = $(VENV_DIR)/Scripts/uvicorn.exe
+    PYTHON_BIN = .venv\Scripts\python.exe
+    PIP_BIN = .venv\Scripts\pip.exe
+    UVICORN_BIN = .venv\Scripts\uvicorn.exe
     RM = cmd /C rmdir /S /Q
     MKDIR = cmd /C if not exist
 else
@@ -46,16 +46,28 @@ venv:
 
 install: venv
 	@echo "Installing dependencies from $(REQS)..."
+ifeq ($(OS),Windows_NT)
+	@$(PYTHON_BIN) -m pip install -r $(REQS)
+else
 	@$(PIP_BIN) install -r $(REQS)
+endif
 	@echo "Installation complete."
 
 run:
 	@echo "Starting service at http://$(HOST):$(PORT)..."
+ifeq ($(OS),Windows_NT)
+	@$(PYTHON_BIN) -m uvicorn $(MAIN_APP) --host $(HOST) --port $(PORT)
+else
 	@$(UVICORN_BIN) $(MAIN_APP) --host $(HOST) --port $(PORT)
+endif
 
 dev:
 	@echo "Starting service in development mode (hot reload) at http://$(HOST):$(PORT)..."
+ifeq ($(OS),Windows_NT)
+	@$(PYTHON_BIN) -m uvicorn $(MAIN_APP) --host $(HOST) --port $(PORT) --reload --limit-max-requests 10000 --timeout-keep-alive 300
+else
 	@$(UVICORN_BIN) $(MAIN_APP) --host $(HOST) --port $(PORT) --reload --limit-max-requests 10000 --timeout-keep-alive 300
+endif
 
 stop:
 	@echo "Stopping uvicorn..."
